@@ -1,152 +1,153 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/data/models/SourceModel.dart';
+import 'package:flutter_application_1/pages/home/widget/custom_product_item_widget.dart';
+import 'package:flutter_application_1/pages/home/widget/custom_text_form_widget.dart';
 import 'package:flutter_application_1/shared/custom_extension.dart';
-import 'package:flutter_application_1/shared/newtwork_layer/api_manager.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../shared/core/utils/app_colors.dart';
+import '../../animation/ShimmerProductScreen .dart';
+import '../../domain/entites/product_entity.dart';
+import '../../domain/usecases/get_all_product_usecase.dart';
+import '../../shared/core/utils/app_text_style.dart';
+import '../view_model/products_view_model_cubit.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class ProductScreen extends StatefulWidget {
+  const ProductScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<ProductScreen> createState() => _ProductScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<Products> product =[];
+class _ProductScreenState extends State<ProductScreen> {
+  ProductsViewModelCubit viewModel = ProductsViewModelCubit(
+      getAllProductUseCase: injectGetAllProductUseCase());
+  // @override
+  // void initState() {
+  //   // TODO: implement initState
+  //   super.initState();
+  //   viewModel.getProducts();
+  // }
+
   @override
-  void initState() {
-  
-    super.initState();
-    var data=ApiManager.getAllProduct();
-    product =data.then((value) => product=value.products ?? [],); 
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    viewModel.searchController.dispose();
+    viewModel.close();
   }
+
   @override
   Widget build(BuildContext context) {
-    var theme = Theme.of(context);
     return Scaffold(
+      appBar: _appBarWidget(),
       body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            40.height,
-            Image.asset(
-              "assets/images/title.png",
-              fit: BoxFit.fill,
-            ),
-            19.height,
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    onChanged: (e){},
-                    decoration: InputDecoration(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 10),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: AppColors.primary,
-                      ),
-                      hintText: " what do you search for?",
-                      hintStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.primary,
-                      ),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: const BorderSide(
-                              color: AppColors.primary, width: 1.5)),
+        padding: EdgeInsets.symmetric(horizontal: 10.0),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              //? section search
+              Row(
+                children: [
+                  Expanded(
+                    child: CustomTextFormFieldWidget(
+                      controller: viewModel.searchController,
+                      myValidator: (text) => null,
+                      keyboardType: TextInputType.text,
+                      onChanged: (text) {
+                        viewModel.searchTextInList(text);
+                      },
                     ),
                   ),
-                ),
-                26.width,
-                Image.asset("assets/images/icon_shopping cart_.png"),
-              ],
-            ),
-            8.height,
-           FutureBuilder<SourceModel>(
-               future: ApiManager.getAllProduct(),
-               builder: (context, snapshot) {
-                 if(snapshot.connectionState == ConnectionState.waiting) {
-                   return  const Center(child: CircularProgressIndicator(
-                     color: AppColors.primary,
-                   ),
-                   );
-                 }
-                 if(snapshot.hasError) {
-                   return Center(child: Column(
-                     mainAxisAlignment: MainAxisAlignment.center,
-                     children: [
-                       Text(snapshot.hasError.toString(),style: theme.textTheme.bodyLarge,),
-                       ElevatedButton(
-                           style: ElevatedButton.styleFrom(
-                               padding: EdgeInsets.all(8),
-                               backgroundColor: AppColors.primary,
-                               shape: RoundedRectangleBorder(
-                                   borderRadius: BorderRadius.circular(8)
-                               )
-                           ),
-                           onPressed: (){
-                             print(ApiManager.getAllProduct());
-                           },
-                           child: Text("Try Again" ,style: theme.textTheme.bodySmall,)
-                       ),
-                     ],
-                   ),);
-                 }
-                   if(snapshot.hasData) {
-                     return Expanded(
-                       child: GridView.builder(
-                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                           crossAxisCount: 2,
-                           mainAxisSpacing: 10,
-                           crossAxisSpacing: 10,
-                           childAspectRatio: 7/11,
-                         ),
-                         itemBuilder: (context, index) {
-                           return Container(
-                               decoration: BoxDecoration(
-                                 borderRadius: BorderRadius.circular(15),
-                                 color: AppColors.primary,
-                               ),
+                  IconButton(
+                    onPressed: null,
+                    icon: Image.asset(
+                      "assets/images/icon_shopping cart_.png",
+                      height: 25,
+                      width: 25,
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                ],
+              ),
 
-                           );
-                         },),
-                     );
-                   }
-                   return Container(
-                     color: Colors.pink,
-                     height: 50,
-                     width: 50,
-                   );
-                 }
-           )
-          ],
+              BlocBuilder<ProductsViewModelCubit, ProductsViewModelState>(
+                bloc: viewModel..getProducts(),
+                builder: (context, state) {
+                  if (state is ProductsViewModelError) {
+                    return Center(
+                      child: Text(
+                        state.error ?? "",
+                        style: AppTextStyle.textStyle16,
+                      ),
+                    );
+                  }
+
+                  if (state is ProductsViewModelSuccess) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        20.height,
+                        //? section products
+                        _gridViewProductWidget(context, viewModel.productsList),
+                      ],
+                    );
+                  }
+                  if (state is SearchViewModelSuccess) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        20.height,
+                        //? section search
+                        _gridViewProductWidget(
+                            context, viewModel.productsListSearch),
+                      ],
+                    );
+                  }
+                  return const ShimmerProductScreen();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+
+  SizedBox _gridViewProductWidget(
+      BuildContext context,
+      List<ProductsEntity> productsList,
+      ) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.79,
+      child: GridView.builder(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 0.80590,
+        ),
+        itemBuilder: (context, index) {
+          return ProductItem(
+            priceOld: productsList[index].discountPercentage,
+            descriptionImage: productsList[index].title,
+            pathImage: productsList[index].images?[0],
+            onTapAddCard: () {},
+            onTapLove: () {},
+            price: productsList[index].price,
+            rating: productsList[index].rating,
+          );
+        },
+        itemCount: productsList.length,
+      ),
+    );
+  }
+
+  AppBar _appBarWidget() {
+    return AppBar(
+      title: Image.asset(
+        "assets/images/title.png",
+        height: 25,
+        width: 50,
+      ),
+    );
+  }
 }
-
-/*
-
- Expanded(
-              child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 7/11,
-                  ),
-                  itemBuilder: (context, index) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: AppColors.primary,
-                      ),
-                    );
-                  },),
-            )
- */
